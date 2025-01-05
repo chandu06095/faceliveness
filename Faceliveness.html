@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Liveness Detection</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    #video {
+      width: 100%;
+      max-width: 600px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+    }
+    canvas {
+      display: none;
+    }
+    #output {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Face Liveness Detection</h1>
+  <video id="video" autoplay playsinline></video>
+  <div id="output">Detecting...</div>
+
+  <script>
+    let videoElement = document.getElementById('video');
+    let outputElement = document.getElementById('output');
+    let model;
+
+    // Load the BlazeFace model for face detection
+    async function loadModel() {
+      model = await blazeface.load();
+      console.log("BlazeFace model loaded.");
+      startVideo();
+    }
+
+    // Start the webcam feed
+    function startVideo() {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          videoElement.srcObject = stream;
+          detectLiveness();
+        })
+        .catch((err) => {
+          console.error("Error accessing the camera: ", err);
+          outputElement.textContent = "Camera access denied.";
+        });
+    }
+
+    // Function to detect liveness
+    async function detectLiveness() {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      setInterval(async () => {
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+        // Detect faces
+        const predictions = await model.estimateFaces(canvas, false);
+
+        if (predictions.length > 0) {
+          // Simple liveness check: detect multiple keypoints on the face
+          let isLive = predictions.some(prediction => prediction.probability > 0.9);
+
+          // Display the result
+          if (isLive) {
+            outputElement.textContent = "Live Face Detected!";
+            outputElement.style.color = "green";
+          } else {
+            outputElement.textContent = "Fake Face Detected!";
+            outputElement.style.color = "red";
+          }
+        } else {
+          outputElement.textContent = "No face detected.";
+          outputElement.style.color = "black";
+        }
+      }, 500); // Run detection every 500ms
+    }
+
+    // Initialize
+    loadModel();
+  </script>
+</body>
+</html>
